@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eef2f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1513" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Budget d'Enola</title>
+<meta name="description" content="Suivi du budget personnel au mois et à l'année.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<style>
+/* Mise en page : un tableau de bord en carnet. Indicateurs en haut, saisie à gauche, lecture à droite. */
+:root {
+  --bg: #eef2f0;
+  --card: #ffffff;
+  --sunk: #f5f8f6;
+  --ink: #15211e;
+  --muted: #56655f;
+  --line: #d8e0dc;
+  --accent: #0e6656;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcefe9;
+  --pos: #16794a;
+  --neg: #b83535;
+  --warn: #9a6a00;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-num: "Atkinson Hyperlegible Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1513; --card: #16201d; --sunk: #1b2724; --ink: #e6eeea; --muted: #9db0a9; --line: #2a3733;
+    --accent: #4fc3a7; --accent-ink: #06231c; --accent-soft: #173a32;
+    --pos: #56c98c; --neg: #f07b7b; --warn: #e0b24a;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #2f9a2f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1513; --card: #16201d; --sunk: #1b2724; --ink: #e6eeea; --muted: #9db0a9; --line: #2a3733;
+  --accent: #4fc3a7; --accent-ink: #06231c; --accent-soft: #173a32;
+  --pos: #56c98c; --neg: #f07b7b; --warn: #e0b24a;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #2f9a2f;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--f-body); font-size: 15px; line-height: 1.5; margin: 0; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.display { font-family: var(--f-display); letter-spacing: -0.01em; text-wrap: balance; }
+.eyebrow { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.field { width: 100%; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; color: var(--ink); font: inherit; min-width: 0; }
+.field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tbl { border-collapse: collapse; width: 100%; }
+.tbl th, .tbl td { padding: 9px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl thead th { font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.tbl tbody tr:hover { background: var(--sunk); }
+.tbl tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--ink); }
+.boot { padding: 48px 16px; text-align: center; color: var(--muted); font-family: var(--f-body); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+
+<div id="root"><p class="boot">Chargement du budget…</p></div>
+
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>
+  tailwind.config = {
+    corePlugins: { preflight: true },
+    theme: { extend: {
+      colors: {
+        bg: 'var(--bg)', card: 'var(--card)', sunk: 'var(--sunk)', ink: 'var(--ink)', muted: 'var(--muted)',
+        line: 'var(--line)', accent: 'var(--accent)', 'accent-ink': 'var(--accent-ink)', 'accent-soft': 'var(--accent-soft)',
+        pos: 'var(--pos)', neg: 'var(--neg)', warn: 'var(--warn)'
+      }
+    } }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>window.react = window.React;</script>
+<script src="https://unpkg.com/lucide-react@0.460.0/dist/umd/lucide-react.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+const L = window.LucideReact || {};
+
+/* ---------- Constantes ---------- */
+const STORAGE_KEY = "budget-enola-v1";
+const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const MOIS_COURT = ["Janv.","Févr.","Mars","Avr.","Mai","Juin","Juil.","Août","Sept.","Oct.","Nov.","Déc."];
+const CATEGORIES = [
+  { id: "Logement",     icon: "Home",          color: "var(--s1)" },
+  { id: "Alimentation", icon: "ShoppingBasket", color: "var(--s2)" },
+  { id: "Transports",   icon: "Car",           color: "var(--s3)" },
+  { id: "Loisirs",      icon: "Sparkles",      color: "var(--s4)" },
+  { id: "Épargne",      icon: "PiggyBank",     color: "var(--s5)" },
+  { id: "Imprévus",     icon: "Umbrella",      color: "var(--s6)" },
+];
+const CAT_BY_ID = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+const REVENU_CATS = ["Salaire", "Aides", "Remboursements", "Autres revenus"];
+
+/* ---------- Outils ---------- */
+const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
+const eur0 = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const fmt = n => eur.format(n || 0);
+const fmt0 = n => eur0.format(Math.round(n || 0));
+const pct = n => isFinite(n) ? `${(n * 100).toFixed(1).replace(".", ",")} %` : "–";
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const pad = n => String(n).padStart(2, "0");
+const isoDate = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+const todayIso = () => { const t = new Date(); return isoDate(t.getFullYear(), t.getMonth(), t.getDate()); };
+const parseAmount = v => { const n = parseFloat(String(v).replace(/\s/g, "").replace(",", ".")); return isFinite(n) ? Math.round(n * 100) / 100 : NaN; };
+const dateLabel = iso => { const [y, m, d] = iso.split("-").map(Number); return `${d} ${MOIS_COURT[m - 1]}`; };
+
+function Icon({ name, size = 18, className = "", ...rest }) {
+  const C = L[name];
+  return C ? <C size={size} className={className} aria-hidden="true" strokeWidth={2} {...rest} /> : null;
+}
+
+const EMPTY = () => ({ sample: false, transactions: [], budgets: Object.fromEntries(CATEGORIES.map(c => [c.id, 0])), revenuPrevu: 0, comptes: ["Carte perso", "Espèces", "Revolut"], lissage: false, chargesAnnuelles: [] });
+
+function normalize(raw) {
+  const base = EMPTY();
+  const d = { ...base, ...(raw || {}) };
+  d.transactions = (Array.isArray(d.transactions) ? d.transactions : []).map(t => ({
+    id: t.id || uid(),
+    type: t.type === "revenu" ? "revenu" : "depense",
+    nom: String(t.nom || "Sans nom"),
+    montant: Math.abs(parseAmount(t.montant)) || 0,
+    categorie: t.type === "revenu" ? (REVENU_CATS.includes(t.categorie) ? t.categorie : "Autres revenus") : (CAT_BY_ID[t.categorie] ? t.categorie : "Imprévus"),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date : todayIso(),
+    compte: t.compte || "", note: t.note || "",
+  }));
+  d.budgets = { ...base.budgets, ...(d.budgets || {}) };
+  d.chargesAnnuelles = (d.chargesAnnuelles || []).map(c => ({ id: c.id || uid(), nom: c.nom || "Charge", montant: Math.abs(parseAmount(c.montant)) || 0, mois: Math.min(11, Math.max(0, +c.mois || 0)), categorie: CAT_BY_ID[c.categorie] ? c.categorie : "Imprévus" }));
+  const comptesTx = d.transactions.map(t => t.compte).filter(Boolean);
+  d.comptes = Array.from(new Set([...(d.comptes || []), ...comptesTx]));
+  return d;
+}
+
+function loadData() {
+  // Les anciennes données d'exemple (sample: true) sont ignorées : l'appli démarre vide.
+  try { const s = localStorage.getItem(STORAGE_KEY); if (s) { const d = JSON.parse(s); if (!d.sample) return normalize(d); } } catch (e) {}
+  return EMPTY();
+}
+
+/* ---------- Calculs ---------- */
+function chargesDuMois(data, year, m) {
+  return data.chargesAnnuelles.flatMap(c => {
+    if (data.lissage) return [{ id: `ca-${c.id}-${m}`, virtual: true, type: "depense", nom: `${c.nom} (1/12)`, montant: Math.round(c.montant / 12 * 100) / 100, categorie: c.categorie, date: isoDate(year, m, 1), compte: "", note: "" }];
+    return c.mois === m ? [{ id: `ca-${c.id}`, virtual: true, type: "depense", nom: c.nom, montant: c.montant, categorie: c.categorie, date: isoDate(year, m, 1), compte: "", note: "" }] : [];
+  });
+}
+function entriesOf(data, year, m) {
+  const prefix = `${year}-${pad(m + 1)}`;
+  return [...data.transactions.filter(t => t.date.startsWith(prefix)), ...chargesDuMois(data, year, m)];
+}
+function summarize(entries) {
+  const parCat = Object.fromEntries(CATEGORIES.map(c => [c.id, 0]));
+  let revenus = 0, depenses = 0, annuelles = 0;
+  for (const e of entries) {
+    if (e.type === "revenu") revenus += e.montant;
+    else { depenses += e.montant; parCat[e.categorie] = (parCat[e.categorie] || 0) + e.montant; if (e.virtual) annuelles += e.montant; }
+  }
+  const epargne = parCat["Épargne"];
+  return { revenus, depenses, depensesHorsEpargne: depenses - epargne, epargne, annuelles, solde: revenus - depenses, taux: revenus > 0 ? epargne / revenus : NaN, parCat, count: entries.length };
+}
+
+/* ---------- Export / import ---------- */
+function toCSV(data) {
+  const esc = v => { const s = String(v ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const rows = [["date", "type", "nom", "categorie", "montant", "compte", "note"]];
+  [...data.transactions].sort((a, b) => a.date.localeCompare(b.date)).forEach(t => rows.push([t.date, t.type, t.nom, t.categorie, String(t.montant).replace(".", ","), t.compte, t.note]));
+  return "﻿" + rows.map(r => r.map(esc).join(";")).join("\r\n");
+}
+function fromCSV(text) {
+  const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(l => l.trim());
+  const split = line => { const out = []; let cur = "", q = false; for (let i = 0; i < line.length; i++) { const ch = line[i]; if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; } else if (ch === '"') q = true; else if (ch === ";" || ch === ",") { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out; };
+  const head = split(lines[0]).map(h => h.trim().toLowerCase());
+  const idx = k => head.indexOf(k);
+  if (idx("date") < 0 || idx("montant") < 0) throw new Error("Colonnes « date » et « montant » introuvables.");
+  return lines.slice(1).map(l => { const c = split(l); const g = k => idx(k) >= 0 ? c[idx(k)] : ""; return { date: g("date"), type: g("type"), nom: g("nom"), categorie: g("categorie"), montant: g("montant"), compte: g("compte"), note: g("note") }; });
+}
+async function saveFile(filename, text, mime) {
+  try {
+    if (window.claude && window.claude.use) {
+      const dl = await window.claude.use("downloads");
+      if (dl) { await dl.save({ filename, data: text }); return "ok"; }
+    }
+  } catch (e) { if (e && e.code === "declined") return "declined"; }
+  // Sur téléphone, le partage natif permet « Enregistrer dans Fichiers » (plus fiable qu'un téléchargement en mode appli).
+  try {
+    const file = new File([text], filename, { type: mime });
+    if (window.matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: filename });
+      return "ok";
+    }
+  } catch (e) { if (e && e.name === "AbortError") return "declined"; }
+  try {
+    const url = URL.createObjectURL(new Blob([text], { type: mime }));
+    const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    return "ok";
+  } catch (e) { return "error"; }
+}
+
+/* ---------- Petits composants ---------- */
+function Card({ title, eyebrow, action, children, className = "" }) {
+  return (
+    <section className={`bg-card border border-line rounded-2xl p-4 sm:p-5 min-w-0 ${className}`}>
+      {(title || action) && (
+        <header className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div className="min-w-0">
+            {eyebrow && <div className="eyebrow mb-0.5">{eyebrow}</div>}
+            {title && <h2 className="display text-lg font-semibold leading-tight">{title}</h2>}
+          </div>
+          {action}
+        </header>
+      )}
+      {children}
+    </section>
+  );
+}
+
+function Kpi({ label, value, sub, tone, icon }) {
+  const toneCls = tone === "pos" ? "text-pos" : tone === "neg" ? "text-neg" : "text-ink";
+  return (
+    <div className="bg-card border border-line rounded-2xl px-4 py-3.5 min-w-0 flex flex-col gap-1">
+      <div className="flex items-center gap-2 eyebrow"><Icon name={icon} size={15} />{label}</div>
+      <div className={`num text-[1.45rem] sm:text-2xl font-semibold leading-tight ${toneCls}`}>{value}</div>
+      {sub && <div className="text-[13px] text-muted">{sub}</div>}
+    </div>
+  );
+}
+
+function Btn({ children, variant = "ghost", className = "", ...rest }) {
+  const v = {
+    primary: "bg-accent text-accent-ink hover:opacity-90",
+    ghost: "bg-card text-ink border border-line hover:bg-sunk",
+    danger: "bg-neg text-white hover:opacity-90",
+    quiet: "text-muted hover:text-ink hover:bg-sunk",
+  }[variant];
+  return <button type="button" className={`inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition ${v} ${className}`} {...rest}>{children}</button>;
+}
+
+function Segmented({ value, onChange, options, label }) {
+  return (
+    <div role="tablist" aria-label={label} className="inline-flex p-1 rounded-xl bg-sunk border border-line">
+      {options.map(o => (
+        <button key={o.value} role="tab" aria-selected={value === o.value} type="button" onClick={() => onChange(o.value)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 transition ${value === o.value ? "bg-card text-ink shadow-sm" : "text-muted hover:text-ink"}`}>
+          {o.icon && <Icon name={o.icon} size={16} />}{o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CatDot({ id, size = 10 }) {
+  const c = CAT_BY_ID[id];
+  return <span className="inline-block rounded-full shrink-0" style={{ width: size, height: size, background: c ? c.color : "var(--muted)" }} />;
+}
+
+/* ---------- Camembert (anneau) ---------- */
+function Donut({ parCat, total }) {
+  const [hover, setHover] = useState(null);
+  const R = 80, r = 52, C = 100;
+  const items = CATEGORIES.map(c => ({ ...c, value: parCat[c.id] || 0 })).filter(c => c.value > 0);
+  let angle = -Math.PI / 2;
+  const arcs = items.map(it => {
+    const a0 = angle, a1 = angle + (it.value / total) * Math.PI * 2; angle = a1;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    const p = (rad, a) => [C + rad * Math.cos(a), C + rad * Math.sin(a)];
+    let d;
+    if (items.length === 1) d = `M ${C} ${C - R} A ${R} ${R} 0 1 1 ${C - 0.01} ${C - R} L ${C - 0.01} ${C - r} A ${r} ${r} 0 1 0 ${C} ${C - r} Z`;
+    else { const [x0, y0] = p(R, a0), [x1, y1] = p(R, a1), [x2, y2] = p(r, a1), [x3, y3] = p(r, a0); d = `M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} L ${x2} ${y2} A ${r} ${r} 0 ${large} 0 ${x3} ${y3} Z`; }
+    return { ...it, d };
+  });
+  const h = hover ? items.find(i => i.id === hover) : null;
+  if (!total) return <p className="text-muted text-sm py-10 text-center">Aucune dépense ce mois-ci. Ajoute une opération pour voir la répartition.</p>;
+  return (
+    <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center gap-5">
+      <svg viewBox="0 0 200 200" className="w-44 h-44 shrink-0" role="img" aria-label="Répartition des dépenses par catégorie">
+        {arcs.map(a => (
+          <path key={a.id} d={a.d} fill={a.color} stroke="var(--card)" strokeWidth="2" strokeLinejoin="round"
+            opacity={hover && hover !== a.id ? 0.35 : 1} onMouseEnter={() => setHover(a.id)} onMouseLeave={() => setHover(null)} style={{ transition: "opacity .15s" }}>
+            <title>{`${a.id} : ${fmt(a.value)} (${pct(a.value / total)})`}</title>
+          </path>
+        ))}
+        <text x="100" y="94" textAnchor="middle" fill="var(--muted)" style={{ font: "600 11px var(--f-body)", letterSpacing: ".05em" }}>{h ? h.id.toUpperCase() : "TOTAL"}</text>
+        <text x="100" y="116" textAnchor="middle" fill="var(--ink)" style={{ font: "600 17px var(--f-num)" }}>{fmt0(h ? h.value : total)}</text>
+      </svg>
+      <ul className="w-full flex flex-col gap-1.5 min-w-0">
+        {CATEGORIES.map(c => {
+          const v = parCat[c.id] || 0;
+          return (
+            <li key={c.id} className={`flex items-center gap-2.5 text-sm rounded-lg px-2 py-1 ${hover === c.id ? "bg-sunk" : ""} ${v ? "" : "opacity-50"}`}
+              onMouseEnter={() => v && setHover(c.id)} onMouseLeave={() => setHover(null)}>
+              <CatDot id={c.id} />
+              <span className="flex-1 truncate">{c.id}</span>
+              <span className="num text-muted w-14 text-right">{v ? pct(v / total) : "–"}</span>
+              <span className="num font-semibold w-24 text-right">{fmt(v)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/* ---------- Graphique d'évolution ---------- */
+function FluxChart({ months, onPick }) {
+  const [hi, setHi] = useState(null);
+  const W = 720, H = 280, P = { l: 58, r: 16, t: 16, b: 34 };
+  const max = Math.max(100, ...months.flatMap(m => [m.revenus, m.depensesHorsEpargne]));
+  const step = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000].find(s => max / s <= 5) || Math.ceil(max / 5);
+  const top = Math.ceil(max / step) * step;
+  const x = i => P.l + (i + 0.5) * ((W - P.l - P.r) / 12);
+  const y = v => P.t + (1 - v / top) * (H - P.t - P.b);
+  const ticks = []; for (let v = 0; v <= top; v += step) ticks.push(v);
+  // Les mois sans aucune opération ne sont pas tracés : la ligne s'interrompt au lieu de chuter à zéro.
+  const has = i => months[i].count > 0;
+  const line = key => months.map((m, i) => has(i) ? `${i && has(i - 1) ? "L" : "M"} ${x(i)} ${y(m[key])}` : "").join(" ");
+  const area = key => {
+    const runs = []; let cur = [];
+    months.forEach((m, i) => { if (has(i)) cur.push(i); else if (cur.length) { runs.push(cur); cur = []; } });
+    if (cur.length) runs.push(cur);
+    return runs.map(r => r.map((i, k) => `${k ? "L" : "M"} ${x(i)} ${y(months[i][key])}`).join(" ") + ` L ${x(r[r.length - 1])} ${y(0)} L ${x(r[0])} ${y(0)} Z`).join(" ");
+  };
+  const bw = (W - P.l - P.r) / 12;
+  const m = hi != null ? months[hi] : null;
+  return (
+    <div className="relative">
+      <div className="flex flex-wrap gap-4 text-sm mb-2">
+        <span className="inline-flex items-center gap-2"><span className="inline-block w-4 h-[3px] rounded" style={{ background: "var(--s1)" }} />Revenus</span>
+        <span className="inline-flex items-center gap-2"><span className="inline-block w-4 h-[3px] rounded" style={{ background: "var(--s2)" }} />Dépenses hors épargne, charges annuelles comprises</span>
+      </div>
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[520px] h-auto" role="img" aria-label="Évolution des revenus et des dépenses sur l'année" onMouseLeave={() => setHi(null)}>
+          {ticks.map(v => (
+            <g key={v}>
+              <line x1={P.l} x2={W - P.r} y1={y(v)} y2={y(v)} stroke="var(--line)" strokeWidth="1" />
+              <text x={P.l - 8} y={y(v) + 4} textAnchor="end" fill="var(--muted)" style={{ font: "400 11px var(--f-num)" }}>{fmt0(v)}</text>
+            </g>
+          ))}
+          {hi != null && <rect x={x(hi) - bw / 2} y={P.t} width={bw} height={H - P.t - P.b} fill="var(--sunk)" />}
+          <path d={area("revenus")} fill="var(--s1)" opacity="0.08" />
+          <path d={line("revenus")} fill="none" stroke="var(--s1)" strokeWidth="2" strokeLinejoin="round" />
+          <path d={line("depensesHorsEpargne")} fill="none" stroke="var(--s2)" strokeWidth="2" strokeLinejoin="round" />
+          {months.map((mm, i) => (
+            <g key={i}>
+              {has(i) && <circle cx={x(i)} cy={y(mm.revenus)} r={hi === i ? 5 : 3.5} fill="var(--s1)" stroke="var(--card)" strokeWidth="2" />}
+              {has(i) && <circle cx={x(i)} cy={y(mm.depensesHorsEpargne)} r={hi === i ? 5 : 3.5} fill="var(--s2)" stroke="var(--card)" strokeWidth="2" />}
+              <text x={x(i)} y={H - 12} textAnchor="middle" fill={hi === i ? "var(--ink)" : "var(--muted)"} style={{ font: "600 11px var(--f-body)" }}>{MOIS_COURT[i]}</text>
+              <rect x={x(i) - bw / 2} y={0} width={bw} height={H} fill="transparent" style={{ cursor: "pointer" }} onMouseEnter={() => setHi(i)} onClick={() => onPick(i)} />
+            </g>
+          ))}
+        </svg>
+      </div>
+      {m && (
+        <div className="pointer-events-none absolute top-10 bg-card border border-line rounded-xl shadow-lg px-3 py-2 text-sm"
+          style={{ left: `clamp(0px, calc(${(x(hi) / W) * 100}% - 90px), calc(100% - 190px))`, width: 190 }}>
+          <div className="font-semibold mb-1">{MOIS[hi]}</div>
+          <div className="flex justify-between gap-3"><span className="text-muted">Revenus</span><span className="num">{fmt(m.revenus)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted">Dépenses</span><span className="num">{fmt(m.depensesHorsEpargne)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted">Épargne</span><span className="num">{fmt(m.epargne)}</span></div>
+          <div className="flex justify-between gap-3 border-t border-line mt-1 pt-1"><span className="text-muted">Solde</span><span className={`num font-semibold ${m.solde < 0 ? "text-neg" : "text-pos"}`}>{fmt(m.solde)}</span></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Formulaire de saisie ---------- */
+function TxForm({ data, year, month, editing, onSave, onCancel }) {
+  const defaultDate = () => { const t = todayIso(); return t.startsWith(`${year}-${pad(month + 1)}`) ? t : isoDate(year, month, 1); };
+  const blank = () => ({ type: "depense", nom: "", montant: "", categorie: "Alimentation", date: defaultDate(), compte: data.comptes[0] || "", note: "" });
+  const [f, setF] = useState(blank);
+  const [err, setErr] = useState("");
+  useEffect(() => { setF(editing ? { ...editing, montant: String(editing.montant).replace(".", ",") } : blank()); setErr(""); }, [editing, year, month]);
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const setType = t => setF(p => ({ ...p, type: t, categorie: t === "revenu" ? "Salaire" : "Alimentation" }));
+  const names = useMemo(() => Array.from(new Set(data.transactions.filter(t => t.type === f.type).map(t => t.nom))).slice(0, 60), [data.transactions, f.type]);
+  const submit = e => {
+    e.preventDefault();
+    const montant = parseAmount(f.montant);
+    if (!f.nom.trim()) return setErr("Donne un nom à l'opération, par exemple « Courses ».");
+    if (!(montant > 0)) return setErr("Le montant doit être un nombre positif, par exemple 12,50.");
+    if (!f.date) return setErr("Choisis une date.");
+    onSave({ ...f, nom: f.nom.trim(), montant, id: editing ? editing.id : uid() });
+    if (!editing) setF(p => ({ ...blank(), type: p.type, categorie: p.categorie, date: p.date, compte: p.compte }));
+    setErr("");
+  };
+  const cats = f.type === "revenu" ? REVENU_CATS : CATEGORIES.map(c => c.id);
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
+      <Segmented label="Type d'opération" value={f.type} onChange={setType}
+        options={[{ value: "depense", label: "Dépense", icon: "ArrowUpRight" }, { value: "revenu", label: "Revenu", icon: "ArrowDownLeft" }]} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1 text-sm font-semibold min-w-0">Nom
+          <input id="tx-nom" className="field font-normal" list="tx-noms" value={f.nom} onChange={e => set("nom", e.target.value)} placeholder={f.type === "revenu" ? "Salaire" : "Courses"} />
+          <datalist id="tx-noms">{names.map(n => <option key={n} value={n} />)}</datalist>
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold min-w-0">Montant (€)
+          <input id="tx-montant" className="field num font-normal" inputMode="decimal" value={f.montant} onChange={e => set("montant", e.target.value)} placeholder="0,00" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold min-w-0">Catégorie
+          <select id="tx-cat" className="field font-normal" value={f.categorie} onChange={e => set("categorie", e.target.value)}>
+            {cats.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold min-w-0">Date
+          <input id="tx-date" type="date" className="field font-normal" value={f.date} onChange={e => set("date", e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold min-w-0">Compte
+          <select id="tx-compte" className="field font-normal" value={f.compte} onChange={e => set("compte", e.target.value)}>
+            <option value="">Non précisé</option>
+            {data.comptes.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold min-w-0">Note
+          <input id="tx-note" className="field font-normal" value={f.note} onChange={e => set("note", e.target.value)} placeholder="Facultatif" />
+        </label>
+      </div>
+      {err && <p role="alert" className="text-sm text-neg flex items-center gap-2"><Icon name="CircleAlert" size={16} />{err}</p>}
+      <div className="flex flex-wrap gap-2">
+        <Btn variant="primary" type="submit"><Icon name={editing ? "Check" : "Plus"} size={16} />{editing ? "Enregistrer" : "Ajouter"}</Btn>
+        {editing && <Btn onClick={onCancel}>Annuler</Btn>}
+      </div>
+    </form>
+  );
+}
+
+/* ---------- Liste des opérations ---------- */
+function TxList({ entries, onEdit, onDelete }) {
+  const [filter, setFilter] = useState("tout");
+  const [confirmId, setConfirmId] = useState(null);
+  const list = entries.filter(e => filter === "tout" || e.type === filter).sort((a, b) => b.date.localeCompare(a.date) || (a.virtual ? 1 : -1));
+  return (
+    <div className="flex flex-col gap-3">
+      <Segmented label="Filtrer les opérations" value={filter} onChange={setFilter}
+        options={[{ value: "tout", label: `Tout (${entries.length})` }, { value: "depense", label: "Dépenses" }, { value: "revenu", label: "Revenus" }]} />
+      {list.length === 0 && <p className="text-muted text-sm py-6 text-center">Rien à afficher pour ce mois.</p>}
+      <ul className="flex flex-col divide-y divide-[color:var(--line)]">
+        {list.map(e => {
+          const isRev = e.type === "revenu";
+          return (
+            <li key={e.id} className="flex items-center gap-3 py-2.5 min-w-0">
+              <span className="num text-xs text-muted w-12 shrink-0">{dateLabel(e.date)}</span>
+              {isRev ? <span className="w-2.5 h-2.5 rounded-full shrink-0 border-2" style={{ borderColor: "var(--pos)" }} /> : <CatDot id={e.categorie} />}
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold truncate">{e.nom}</div>
+                <div className="text-xs text-muted truncate">
+                  {e.categorie}{e.compte ? ` · ${e.compte}` : ""}{e.note ? ` · ${e.note}` : ""}
+                  {e.virtual && <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-accent-soft text-accent px-2 py-px font-semibold"><Icon name="CalendarClock" size={12} />Charge annuelle</span>}
+                </div>
+              </div>
+              <span className={`num font-semibold shrink-0 ${isRev ? "text-pos" : ""}`}>{isRev ? "+" : "−"}{fmt(e.montant)}</span>
+              {!e.virtual && (
+                confirmId === e.id ? (
+                  <span className="flex gap-1 shrink-0">
+                    <Btn variant="danger" className="!px-2.5 !py-1.5" onClick={() => { onDelete(e.id); setConfirmId(null); }}>Supprimer</Btn>
+                    <Btn variant="quiet" className="!px-2 !py-1.5" onClick={() => setConfirmId(null)} aria-label="Annuler"><Icon name="X" size={16} /></Btn>
+                  </span>
+                ) : (
+                  <span className="flex shrink-0">
+                    <Btn variant="quiet" className="!px-2 !py-1.5" onClick={() => onEdit(e)} aria-label={`Modifier ${e.nom}`}><Icon name="Pencil" size={16} /></Btn>
+                    <Btn variant="quiet" className="!px-2 !py-1.5" onClick={() => setConfirmId(e.id)} aria-label={`Supprimer ${e.nom}`}><Icon name="Trash2" size={16} /></Btn>
+                  </span>
+                )
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/* ---------- Prévu vs réel ---------- */
+function BudgetBars({ parCat, budgets }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {CATEGORIES.map(c => {
+        const reel = parCat[c.id] || 0, prevu = budgets[c.id] || 0;
+        const ratio = prevu > 0 ? reel / prevu : 0;
+        const over = prevu > 0 && reel > prevu && c.id !== "Épargne";
+        return (
+          <li key={c.id} className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-sm">
+              <Icon name={c.icon} size={15} className="text-muted" />
+              <span className="flex-1 font-semibold">{c.id}</span>
+              <span className="num"><span className={over ? "text-neg font-semibold" : ""}>{fmt0(reel)}</span><span className="text-muted"> / {prevu ? fmt0(prevu) : "–"}</span></span>
+            </div>
+            <div className="h-2 rounded-full bg-sunk overflow-hidden border border-line">
+              <div className="h-full rounded-full" style={{ width: `${Math.min(100, ratio * 100)}%`, background: over ? "var(--neg)" : c.color }} />
+            </div>
+            {over && <div className="text-xs text-neg">Dépassement de {fmt(reel - prevu)}</div>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/* ---------- Vue mensuelle ---------- */
+function MonthView({ data, year, month, setMonth, upsert, remove }) {
+  const [editing, setEditing] = useState(null);
+  const entries = useMemo(() => entriesOf(data, year, month), [data, year, month]);
+  const s = useMemo(() => summarize(entries), [entries]);
+  const prev = useMemo(() => summarize(entriesOf(data, month ? year : year - 1, month ? month - 1 : 11)), [data, year, month]);
+  const delta = s.depensesHorsEpargne - prev.depensesHorsEpargne;
+  const formRef = useRef(null);
+  const edit = e => { setEditing(e); formRef.current && formRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Btn variant="quiet" onClick={() => setMonth(month - 1)} aria-label="Mois précédent"><Icon name="ChevronLeft" /></Btn>
+        <h1 className="display text-3xl sm:text-4xl font-extrabold min-w-[12ch]">{MOIS[month]} <span className="text-muted font-semibold">{year}</span></h1>
+        <Btn variant="quiet" onClick={() => setMonth(month + 1)} aria-label="Mois suivant"><Icon name="ChevronRight" /></Btn>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <Kpi label="Revenus" icon="ArrowDownLeft" value={fmt(s.revenus)} sub={data.revenuPrevu ? `Prévu ${fmt0(data.revenuPrevu)}` : "Entrées du mois"} />
+        <Kpi label="Dépenses" icon="ArrowUpRight" value={fmt(s.depensesHorsEpargne)} sub={prev.count ? `${delta > 0 ? "+" : "−"}${fmt0(Math.abs(delta))} vs ${MOIS_COURT[month ? month - 1 : 11].toLowerCase()}` : "Hors épargne"} />
+        <Kpi label="Épargne" icon="PiggyBank" value={fmt(s.epargne)} sub="Versée ce mois" />
+        <Kpi label="Solde restant" icon="Wallet" value={fmt(s.solde)} tone={s.solde < 0 ? "neg" : "pos"} sub="Revenus − toutes sorties" />
+        <div className="col-span-2 lg:col-span-1"><Kpi label="Taux d'épargne" icon="TrendingUp" value={pct(s.taux)} tone={s.taux >= 0.1 ? "pos" : undefined} sub={s.revenus ? `Avec le solde : ${pct((s.epargne + Math.max(0, s.solde)) / s.revenus)}` : "Aucun revenu saisi"} /></div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
+        <div className="lg:col-span-3 flex flex-col gap-5 min-w-0">
+          <div ref={formRef} className="scroll-mt-4">
+            <Card eyebrow={editing ? "Modification" : "Saisie"} title={editing ? `Modifier « ${editing.nom} »` : "Ajouter une opération"}>
+              <TxForm data={data} year={year} month={month} editing={editing}
+                onSave={t => { upsert(t); setEditing(null); }} onCancel={() => setEditing(null)} />
+            </Card>
+          </div>
+          <Card eyebrow="Journal" title="Opérations du mois">
+            <TxList entries={entries} onEdit={edit} onDelete={remove} />
+          </Card>
+        </div>
+        <div className="lg:col-span-2 flex flex-col gap-5 min-w-0">
+          <Card eyebrow="Répartition" title="Où va l'argent ce mois-ci">
+            <Donut parCat={s.parCat} total={s.depenses} />
+          </Card>
+          <Card eyebrow="Budget" title="Prévu et réel par catégorie">
+            <BudgetBars parCat={s.parCat} budgets={data.budgets} />
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Charges annuelles ---------- */
+function ChargesAnnuelles({ data, setData }) {
+  const [f, setF] = useState({ nom: "", montant: "", mois: 0, categorie: "Logement" });
+  const [err, setErr] = useState("");
+  const total = data.chargesAnnuelles.reduce((a, c) => a + c.montant, 0);
+  const add = e => {
+    e.preventDefault();
+    const montant = parseAmount(f.montant);
+    if (!f.nom.trim()) return setErr("Indique le nom de la charge, par exemple « Taxe d'habitation ».");
+    if (!(montant > 0)) return setErr("Le montant doit être un nombre positif.");
+    setData(d => ({ ...d, sample: false, chargesAnnuelles: [...d.chargesAnnuelles, { id: uid(), nom: f.nom.trim(), montant, mois: +f.mois, categorie: f.categorie }] }));
+    setF({ nom: "", montant: "", mois: 0, categorie: "Logement" }); setErr("");
+  };
+  const del = id => setData(d => ({ ...d, chargesAnnuelles: d.chargesAnnuelles.filter(c => c.id !== id) }));
+  return (
+    <Card eyebrow="Récurrent" title="Charges annuelles"
+      action={<label className="inline-flex items-center gap-2 text-sm font-semibold cursor-pointer select-none">
+        <input id="lissage" type="checkbox" className="w-4 h-4 accent-[color:var(--accent)]" checked={data.lissage} onChange={e => setData(d => ({ ...d, lissage: e.target.checked }))} />
+        Répartir sur 12 mois
+      </label>}>
+      <p className="text-sm text-muted mb-3">Impôts, assurances, abonnements annuels. Elles s'ajoutent automatiquement au mois d'échéance{data.lissage ? ", ou ici par douzième chaque mois" : ""}.</p>
+      <div className="rounded-xl bg-accent-soft text-ink px-3 py-2.5 mb-4 text-sm flex flex-wrap items-center gap-x-2">
+        <Icon name="PiggyBank" size={16} className="text-accent" />
+        À mettre de côté chaque mois : <strong className="num">{fmt(total / 12)}</strong><span className="text-muted">({fmt0(total)} par an)</span>
+      </div>
+      <ul className="flex flex-col divide-y divide-[color:var(--line)] mb-4">
+        {data.chargesAnnuelles.length === 0 && <li className="text-sm text-muted py-2">Aucune charge annuelle pour le moment.</li>}
+        {[...data.chargesAnnuelles].sort((a, b) => a.mois - b.mois).map(c => (
+          <li key={c.id} className="flex items-center gap-3 py-2 min-w-0">
+            <CatDot id={c.categorie} />
+            <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.nom}</div><div className="text-xs text-muted">{MOIS[c.mois]} · {c.categorie}</div></div>
+            <span className="num font-semibold">{fmt(c.montant)}</span>
+            <Btn variant="quiet" className="!px-2 !py-1.5" onClick={() => del(c.id)} aria-label={`Supprimer ${c.nom}`}><Icon name="Trash2" size={16} /></Btn>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={add} className="grid grid-cols-2 gap-2" noValidate>
+        <input id="ca-nom" className="field col-span-2" placeholder="Nom (ex. Taxe foncière)" value={f.nom} onChange={e => setF({ ...f, nom: e.target.value })} />
+        <input id="ca-montant" className="field num" inputMode="decimal" placeholder="Montant €" value={f.montant} onChange={e => setF({ ...f, montant: e.target.value })} />
+        <select id="ca-mois" className="field" value={f.mois} onChange={e => setF({ ...f, mois: e.target.value })} aria-label="Mois d'échéance">
+          {MOIS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+        </select>
+        <select id="ca-cat" className="field" value={f.categorie} onChange={e => setF({ ...f, categorie: e.target.value })} aria-label="Catégorie">
+          {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
+        </select>
+        <Btn variant="primary" type="submit"><Icon name="Plus" size={16} />Ajouter</Btn>
+        {err && <p role="alert" className="col-span-2 text-sm text-neg">{err}</p>}
+      </form>
+    </Card>
+  );
+}
+
+/* ---------- Vue annuelle ---------- */
+function YearView({ data, setData, year, goMonth }) {
+  const [mode, setMode] = useState("synthese");
+  const months = useMemo(() => MOIS.map((_, m) => summarize(entriesOf(data, year, m))), [data, year]);
+  const tot = useMemo(() => summarize(MOIS.flatMap((_, m) => entriesOf(data, year, m))), [data, year]);
+  const actifs = months.filter(m => m.count > 0).length || 1;
+  const top = useMemo(() => {
+    const acc = {};
+    MOIS.forEach((_, m) => entriesOf(data, year, m).filter(e => e.type === "depense" && e.categorie !== "Épargne").forEach(e => {
+      const k = e.nom.replace(/ \(1\/12\)$/, ""); acc[k] = acc[k] || { nom: k, montant: 0, categorie: e.categorie }; acc[k].montant += e.montant;
+    }));
+    return Object.values(acc).sort((a, b) => b.montant - a.montant).slice(0, 10);
+  }, [data, year]);
+  const catMax = Math.max(1, ...months.flatMap(m => CATEGORIES.map(c => m.parCat[c.id])));
+  return (
+    <div className="flex flex-col gap-5">
+      <h1 className="display text-3xl sm:text-4xl font-extrabold">Bilan {year}</h1>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <Kpi label="Revenus" icon="ArrowDownLeft" value={fmt0(tot.revenus)} sub={`${fmt0(tot.revenus / actifs)} par mois`} />
+        <Kpi label="Dépenses" icon="ArrowUpRight" value={fmt0(tot.depensesHorsEpargne)} sub={`${fmt0(tot.depensesHorsEpargne / actifs)} par mois`} />
+        <Kpi label="Épargne" icon="PiggyBank" value={fmt0(tot.epargne)} sub={`${fmt0(tot.epargne / actifs)} par mois`} />
+        <Kpi label="Solde de l'année" icon="Wallet" value={fmt0(tot.solde)} tone={tot.solde < 0 ? "neg" : "pos"} sub={`Sur ${actifs} mois renseigné${actifs > 1 ? "s" : ""}`} />
+        <div className="col-span-2 lg:col-span-1"><Kpi label="Taux d'épargne" icon="TrendingUp" value={pct(tot.taux)} tone={tot.taux >= 0.1 ? "pos" : undefined} sub={`Charges annuelles : ${fmt0(tot.annuelles)}`} /></div>
+      </div>
+      <Card eyebrow="Flux" title="Revenus et dépenses mois par mois" action={<span className="text-xs text-muted">Clique sur un mois pour l'ouvrir</span>}>
+        <FluxChart months={months} onPick={goMonth} />
+      </Card>
+      <Card eyebrow="Récapitulatif" title="Tableau de l'année"
+        action={<Segmented label="Type de tableau" value={mode} onChange={setMode} options={[{ value: "synthese", label: "Synthèse" }, { value: "categories", label: "Par catégorie" }]} />}>
+        <div className="overflow-x-auto -mx-1 px-1">
+          {mode === "synthese" ? (
+            <table className="tbl num text-sm">
+              <thead><tr><th>Mois</th><th>Revenus</th><th>Dépenses</th><th>dont annuelles</th><th>Épargne</th><th>Solde</th><th>Taux</th></tr></thead>
+              <tbody>
+                {months.map((m, i) => (
+                  <tr key={i} className="cursor-pointer" onClick={() => goMonth(i)} tabIndex={0} onKeyDown={e => e.key === "Enter" && goMonth(i)}>
+                    <td style={{ fontFamily: "var(--f-body)" }} className="font-semibold">{MOIS[i]}</td>
+                    <td>{m.revenus ? fmt(m.revenus) : "–"}</td>
+                    <td>{m.depensesHorsEpargne ? fmt(m.depensesHorsEpargne) : "–"}</td>
+                    <td className="text-muted">{m.annuelles ? fmt(m.annuelles) : "–"}</td>
+                    <td>{m.epargne ? fmt(m.epargne) : "–"}</td>
+                    <td className={m.count ? (m.solde < 0 ? "text-neg font-semibold" : "text-pos font-semibold") : "text-muted"}>{m.count ? fmt(m.solde) : "–"}</td>
+                    <td>{m.revenus ? pct(m.taux) : "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr>
+                <td style={{ fontFamily: "var(--f-body)" }}>Total</td><td>{fmt(tot.revenus)}</td><td>{fmt(tot.depensesHorsEpargne)}</td><td>{fmt(tot.annuelles)}</td><td>{fmt(tot.epargne)}</td>
+                <td className={tot.solde < 0 ? "text-neg" : "text-pos"}>{fmt(tot.solde)}</td><td>{pct(tot.taux)}</td>
+              </tr></tfoot>
+            </table>
+          ) : (
+            <table className="tbl num text-sm">
+              <thead><tr><th>Mois</th>{CATEGORIES.map(c => <th key={c.id}><span className="inline-flex items-center gap-1.5"><CatDot id={c.id} size={8} />{c.id}</span></th>)}</tr></thead>
+              <tbody>
+                {months.map((m, i) => (
+                  <tr key={i} className="cursor-pointer" onClick={() => goMonth(i)}>
+                    <td style={{ fontFamily: "var(--f-body)" }} className="font-semibold">{MOIS[i]}</td>
+                    {CATEGORIES.map(c => {
+                      const v = m.parCat[c.id];
+                      return <td key={c.id} style={v ? { background: `color-mix(in srgb, ${c.color} ${Math.round(6 + (v / catMax) * 30)}%, transparent)` } : undefined}>{v ? fmt0(v) : "–"}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr><td style={{ fontFamily: "var(--f-body)" }}>Total</td>{CATEGORIES.map(c => <td key={c.id}>{fmt0(tot.parCat[c.id])}</td>)}</tr></tfoot>
+            </table>
+          )}
+        </div>
+      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <ChargesAnnuelles data={data} setData={setData} />
+        <Card eyebrow="Classement" title="Les 10 plus grosses dépenses">
+          {top.length === 0 ? <p className="text-sm text-muted">Pas encore de dépenses cette année.</p> : (
+            <ol className="flex flex-col gap-2">
+              {top.map((t, i) => (
+                <li key={t.nom} className="flex items-center gap-3 text-sm">
+                  <span className="num text-muted w-5 text-right">{i + 1}</span>
+                  <CatDot id={t.categorie} />
+                  <span className="flex-1 truncate font-semibold">{t.nom}</span>
+                  <span className="hidden sm:block w-24 h-1.5 rounded-full bg-sunk overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${(t.montant / top[0].montant) * 100}%`, background: CAT_BY_ID[t.categorie].color }} /></span>
+                  <span className="num font-semibold w-24 text-right">{fmt0(t.montant)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Réglages ---------- */
+function SettingsView({ data, setData, onExport, onImportClick, onReset }) {
+  const [compte, setCompte] = useState("");
+  const [confirmReset, setConfirmReset] = useState(false);
+  const setBudget = (k, v) => setData(d => ({ ...d, budgets: { ...d.budgets, [k]: parseAmount(v) || 0 } }));
+  const totalPrevu = CATEGORIES.reduce((a, c) => a + (data.budgets[c.id] || 0), 0);
+  return (
+    <div className="flex flex-col gap-5">
+      <h1 className="display text-3xl sm:text-4xl font-extrabold">Réglages</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <Card key={JSON.stringify(data.budgets) + data.revenuPrevu} eyebrow="Prévisionnel" title="Budget prévu chaque mois">
+          <div className="flex flex-col gap-2.5">
+            <label className="flex items-center gap-3 text-sm">
+              <span className="w-2.5 h-2.5 rounded-full border-2 shrink-0" style={{ borderColor: "var(--pos)" }} />
+              <span className="flex-1 font-semibold">Revenus attendus</span>
+              <input id="prevu-revenus" className="field num w-32 text-right" inputMode="decimal" defaultValue={data.revenuPrevu || ""} onBlur={e => setData(d => ({ ...d, revenuPrevu: parseAmount(e.target.value) || 0 }))} placeholder="0" />
+            </label>
+            {CATEGORIES.map(c => (
+              <label key={c.id} className="flex items-center gap-3 text-sm">
+                <CatDot id={c.id} />
+                <span className="flex-1 font-semibold">{c.id}</span>
+                <input id={`prevu-${c.id}`} className="field num w-32 text-right" inputMode="decimal" defaultValue={data.budgets[c.id] || ""} onBlur={e => setBudget(c.id, e.target.value)} placeholder="0" />
+              </label>
+            ))}
+            <div className="flex justify-between border-t border-line pt-2.5 text-sm font-semibold">
+              <span>Total des sorties prévues</span><span className="num">{fmt(totalPrevu)}</span>
+            </div>
+            {data.revenuPrevu > 0 && <div className={`text-sm ${data.revenuPrevu - totalPrevu < 0 ? "text-neg" : "text-muted"}`}>Reste prévu en fin de mois : <span className="num font-semibold">{fmt(data.revenuPrevu - totalPrevu)}</span></div>}
+          </div>
+        </Card>
+        <div className="flex flex-col gap-5">
+          <Card eyebrow="Moyens de paiement" title="Comptes">
+            <div className="flex flex-wrap gap-2 mb-3">
+              {data.comptes.map(c => (
+                <span key={c} className="inline-flex items-center gap-1 rounded-full bg-sunk border border-line pl-3 pr-1 py-1 text-sm font-semibold">{c}
+                  <button type="button" className="rounded-full p-1 text-muted hover:text-neg" aria-label={`Retirer ${c}`} onClick={() => setData(d => ({ ...d, comptes: d.comptes.filter(x => x !== c) }))}><Icon name="X" size={14} /></button>
+                </span>
+              ))}
+            </div>
+            <form className="flex gap-2" onSubmit={e => { e.preventDefault(); const v = compte.trim(); if (v && !data.comptes.includes(v)) setData(d => ({ ...d, comptes: [...d.comptes, v] })); setCompte(""); }}>
+              <input id="nouveau-compte" className="field" placeholder="Nouveau compte" value={compte} onChange={e => setCompte(e.target.value)} />
+              <Btn type="submit"><Icon name="Plus" size={16} />Ajouter</Btn>
+            </form>
+          </Card>
+          <Card eyebrow="Sauvegarde" title="Mes données">
+            <p className="text-sm text-muted mb-3">Tout est enregistré automatiquement dans ce navigateur. Exporte régulièrement un fichier pour garder une copie ou changer d'appareil.</p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Btn onClick={() => onExport("json")}><Icon name="FileJson" size={16} />Exporter en JSON</Btn>
+              <Btn onClick={() => onExport("csv")}><Icon name="FileSpreadsheet" size={16} />Exporter en CSV</Btn>
+              <Btn onClick={onImportClick}><Icon name="Upload" size={16} />Importer un fichier</Btn>
+            </div>
+            <div className="border-t border-line pt-3 flex flex-wrap items-center gap-2">
+              {confirmReset ? (<>
+                <span className="text-sm font-semibold text-neg">Tout effacer ? Cette action est définitive.</span>
+                <Btn variant="danger" onClick={() => { onReset(); setConfirmReset(false); }}>Oui, tout effacer</Btn>
+                <Btn variant="quiet" onClick={() => setConfirmReset(false)}>Annuler</Btn>
+              </>) : (<>
+                <Btn variant="quiet" onClick={() => setConfirmReset(true)}><Icon name="RotateCcw" size={16} />Repartir de zéro</Btn>
+              </>)}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Application ---------- */
+function BudgetApp() {
+  const now = new Date();
+  const [data, setData] = useState(loadData);
+  const [view, setView] = useState(() => { try { return localStorage.getItem(STORAGE_KEY + "-vue") || "mois"; } catch (e) { return "mois"; } });
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonthRaw] = useState(now.getMonth());
+  const [toast, setToast] = useState(null);
+  const [pending, setPending] = useState(null);
+  const fileRef = useRef(null);
+
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {} }, [data]);
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY + "-vue", view); } catch (e) {} }, [view]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3200); return () => clearTimeout(t); }, [toast]);
+
+  const setMonth = m => { if (m < 0) { setYear(y => y - 1); setMonthRaw(11); } else if (m > 11) { setYear(y => y + 1); setMonthRaw(0); } else setMonthRaw(m); };
+  const upsert = t => setData(d => ({ ...d, transactions: d.transactions.some(x => x.id === t.id) ? d.transactions.map(x => x.id === t.id ? t : x) : [...d.transactions, t] }));
+  const remove = id => setData(d => ({ ...d, transactions: d.transactions.filter(x => x.id !== id) }));
+
+  const onExport = async kind => {
+    const stamp = todayIso();
+    const res = kind === "json"
+      ? await saveFile(`budget-${stamp}.json`, JSON.stringify({ app: "budget-enola", version: 1, exportLe: stamp, ...data, sample: undefined }, null, 2), "application/json")
+      : await saveFile(`budget-${stamp}.csv`, toCSV(data), "text/csv");
+    setToast(res === "ok" ? { msg: `Export ${kind.toUpperCase()} prêt.` } : res === "declined" ? { msg: "Export annulé." } : { msg: "L'export n'a pas pu démarrer dans cette fenêtre.", bad: true });
+  };
+  const onFile = async e => {
+    const file = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      let incoming;
+      if (/\.csv$/i.test(file.name)) incoming = { transactions: fromCSV(text) };
+      else { const j = JSON.parse(text); incoming = Array.isArray(j) ? { transactions: j } : j; }
+      const n = normalize(incoming);
+      if (!n.transactions.length && !n.chargesAnnuelles.length) throw new Error("Le fichier ne contient aucune opération.");
+      setPending({ name: file.name, incoming, hasSettings: !!incoming.budgets, count: n.transactions.length });
+    } catch (err) { setToast({ msg: `Import impossible : ${err.message || "fichier illisible"}`, bad: true }); }
+  };
+  const applyImport = mode => {
+    const inc = pending.incoming;
+    setData(d => {
+      const base = mode === "remplacer" ? { ...EMPTY(), comptes: d.comptes, budgets: d.budgets, revenuPrevu: d.revenuPrevu, chargesAnnuelles: d.sample ? [] : d.chargesAnnuelles } : { ...d, transactions: d.sample ? [] : d.transactions };
+      const merged = normalize({ ...base, ...(inc.budgets ? { budgets: inc.budgets, revenuPrevu: inc.revenuPrevu, lissage: inc.lissage } : {}),
+        comptes: [...base.comptes, ...(inc.comptes || [])],
+        chargesAnnuelles: inc.chargesAnnuelles ? (mode === "remplacer" ? inc.chargesAnnuelles : [...base.chargesAnnuelles, ...inc.chargesAnnuelles]) : base.chargesAnnuelles,
+        transactions: [...(mode === "remplacer" ? [] : base.transactions), ...(inc.transactions || [])] });
+      return { ...merged, sample: false };
+    });
+    const first = (inc.transactions || []).map(t => t.date).filter(Boolean).sort()[0];
+    if (first) { setYear(+first.slice(0, 4)); }
+    setToast({ msg: `${pending.count} opération${pending.count > 1 ? "s" : ""} importée${pending.count > 1 ? "s" : ""}.` });
+    setPending(null);
+  };
+
+  const tabs = [{ value: "mois", label: "Mois", icon: "CalendarDays" }, { value: "annee", label: "Année", icon: "ChartLine" }, { value: "reglages", label: "Réglages", icon: "Settings2" }];
+
+  return (
+    <div className="min-h-full">
+      <header className="sticky z-20 bg-bg border-b border-line" style={{ top: "env(safe-area-inset-top, 0px)" }}>
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2.5 mr-auto">
+            <span className="w-9 h-9 rounded-xl bg-accent text-accent-ink grid place-items-center"><Icon name="Wallet" size={19} /></span>
+            <div className="leading-tight">
+              <div className="display font-extrabold text-lg">Budget d'Enola</div>
+              <div className="text-xs text-muted">Enregistré dans ce navigateur</div>
+            </div>
+          </div>
+          <Segmented label="Vue" value={view} onChange={setView} options={tabs} />
+          <div className="flex items-center gap-1">
+            <Btn variant="quiet" onClick={() => setYear(y => y - 1)} aria-label="Année précédente"><Icon name="ChevronLeft" size={16} /></Btn>
+            <span className="num font-semibold">{year}</span>
+            <Btn variant="quiet" onClick={() => setYear(y => y + 1)} aria-label="Année suivante"><Icon name="ChevronRight" size={16} /></Btn>
+          </div>
+          <div className="flex gap-1.5">
+            <Btn onClick={() => onExport("json")} title="Exporter toutes les données en JSON"><Icon name="Download" size={16} />JSON</Btn>
+            <Btn onClick={() => onExport("csv")} title="Exporter les opérations en CSV"><Icon name="Download" size={16} />CSV</Btn>
+            <Btn onClick={() => fileRef.current && fileRef.current.click()} title="Importer un fichier JSON ou CSV"><Icon name="Upload" size={16} /><span className="hidden sm:inline">Importer</span></Btn>
+          </div>
+          <input ref={fileRef} id="import-file" type="file" accept=".json,.csv,application/json,text/csv" className="hidden" onChange={onFile} />
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-5 sm:py-7 flex flex-col gap-5">
+        {pending && (
+          <div role="dialog" aria-label="Confirmer l'import" className="rounded-2xl border border-line bg-card px-4 py-3 flex flex-wrap items-center gap-3 text-sm shadow-sm">
+            <Icon name="FileJson" size={18} className="text-accent" />
+            <span className="flex-1 min-w-[16ch]"><strong>{pending.name}</strong> contient {pending.count} opération{pending.count > 1 ? "s" : ""}. Que veux-tu faire ?</span>
+            <Btn variant="primary" onClick={() => applyImport("ajouter")}>Ajouter à mes données</Btn>
+            <Btn onClick={() => applyImport("remplacer")}>Remplacer mes opérations</Btn>
+            <Btn variant="quiet" onClick={() => setPending(null)}>Annuler</Btn>
+          </div>
+        )}
+        {view === "mois" && <MonthView data={data} year={year} month={month} setMonth={setMonth} upsert={upsert} remove={remove} />}
+        {view === "annee" && <YearView data={data} setData={setData} year={year} goMonth={m => { setMonthRaw(m); setView("mois"); window.scrollTo({ top: 0 }); }} />}
+        {view === "reglages" && <SettingsView data={data} setData={setData} onExport={onExport} onImportClick={() => fileRef.current && fileRef.current.click()} onReset={() => { setData(EMPTY()); setToast({ msg: "Données effacées." }); }} />}
+      </main>
+
+      <footer className="max-w-6xl mx-auto px-4 pb-8 text-xs text-muted">Solde restant = revenus − dépenses − épargne. Taux d'épargne = épargne versée ÷ revenus.</footer>
+
+      {toast && (
+        <div role="status" className={`fixed left-1/2 -translate-x-1/2 z-30 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-lg border ${toast.bad ? "bg-card text-neg border-neg" : "bg-ink text-bg border-ink"}`}
+          style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>{toast.msg}</div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<BudgetApp />);
+</script>
+
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});</script>
+</body>
+</html>
